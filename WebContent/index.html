@@ -1,0 +1,184 @@
+<html>
+<link rel="stylesheet"
+	href="https://cdnjs.cloudflare.com/ajax/libs/admin-lte/2.3.11/css/AdminLTE.css">
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet"
+	href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+<!-- Optional theme -->
+<link rel="stylesheet"
+	href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css">
+
+<!-- Latest compiled and minified JavaScript -->
+<script
+	src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<script
+	src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.6/angular.min.js"></script>
+<head>
+<title>Echo Chamber</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+</head>
+<body>
+
+
+	<div class="row" ng-app="websocketApp" ng-controller="myCtrl">
+		
+		<div class="col-md-3" style="padding: 40px">
+			<div class="box box-solid"
+				style="border: 1px solid #eee; padding: 7px;">
+				<div class="box-header with-border">
+					<h3 class="box-title">Date</h3>
+
+					<div class="box-tools">
+						<button type="button" class="btn btn-box-tool"
+							data-widget="collapse">
+							<i class="fa fa-minus"></i>
+						</button>
+					</div>
+				</div>
+				<div class="box-body no-padding">
+					<ul class="nav nav-pills nav-stacked">
+						<li ng-repeat="x in products" class="active"><p
+								style="position: relative; top: 5px">
+								{{x.notificationType}} <span
+									class="label label-primary pull-right"> {{x.count}}</span>
+							</p></li>
+
+					</ul>
+				</div>
+				<!-- /.box-body -->
+			</div>
+			<!-- /. box -->
+		<button type="button" ng-click="openSocket()">Click to Establish Connection</button>
+
+
+		</div>
+		<!-- /.col -->
+		<div class="col-md-9" style="padding: 40px">
+			<div class="box box-primary">
+				<div class="box-header with-border">
+					<h3 class="box-title">Inbox</h3>
+					<!-- /.box-tools -->
+				</div>
+				<!-- /.box-header -->
+				<div class="box-body no-padding">
+					<div class="table-responsive mailbox-messages">
+						<ul class="nav nav-pills nav-stacked">
+							<li ng-repeat="x in list" class="active"><p
+									style="position: relative; top: 5px">{{x}}</li>
+						</ul>
+						<!-- /.table -->
+					</div>
+					<!-- /.mail-box-messages -->
+				</div>
+			</div>
+			<!-- /. box -->
+		</div>
+		<!-- /.col -->
+	</div>
+
+	<!-- Script to utilise the WebSocket -->
+	<script>
+		var app = angular.module("websocketApp", []);
+		app.controller("myCtrl",function($scope) {
+							var webSocket;
+							var messages = document.getElementById("messages");
+
+							$scope.list = [];
+							$scope.products = [
+
+							{
+
+								notificationType : 'Assigned tasks',
+								count : 0,
+								message : 'Test1'
+
+							}, {
+
+								notificationType : 'Reminders',
+								count : 0,
+								message : 'Test2'
+
+							}, {
+
+								notificationType : 'Notifications',
+								count : 0,
+								message : 'Test3'
+
+							} ]
+							$scope.openSocket = function() {
+								// Ensures only one connection is open at a time
+								if (webSocket !== undefined
+										&& webSocket.readyState !== WebSocket.CLOSED) {
+									writeResponse("WebSocket is already opened.");
+									return;
+								}
+								// Create a new instance of the websocket
+								$scope.websocket = new WebSocket(
+										"ws://localhost:8080/EchoChamber/echo");
+
+								/**
+								 * Binds functions to the listeners for the websocket.
+								 */
+								$scope.websocket.onopen = function(event) {
+									// For reasons I can't determine, onopen gets called twice
+									// and the first time event.data is undefined.
+									// Leave a comment if you know the answer.
+									if (event.data === undefined)
+										return;
+									onmessage(event);
+								};
+
+								$scope.websocket.onmessage = function(event) {
+									if (event.data
+											&& event.data.indexOf(",") > -1) {
+										var obj = {};
+										var arrData = event.data.split(",");
+										for (var count = 0; count < arrData.length; count++) {
+											var arrItem = arrData[count]
+													.split("=");
+											obj[arrItem[0].trim()] = arrItem[1];
+										}
+										if (obj) {
+											for (i = 0; i < $scope.products.length; i++) {
+												if ($scope.products[i].notificationType === obj.notificationType) {
+													$scope.products[i].count += parseInt(obj.count);
+													$scope.list
+															.unshift(obj.message);
+													$scope.$apply();
+												}
+											}
+										}
+
+									}
+
+								};
+
+								$scope.websocket.onclose = function(event) {
+									writeResponse("Connection closed");
+								};
+							}
+
+							/**
+							 * Sends the value of the text input to the server
+							 */
+							function send() {
+								var text = document
+										.getElementById("messageinput").value;
+								webSocket.send(text);
+							}
+
+							function closeSocket() {
+								webSocket.close();
+							}
+
+							function writeResponse(text) {
+								messages.innerHTML += "<br/>" + text;
+							}
+
+						});
+	</script>
+
+</body>
+</html>
